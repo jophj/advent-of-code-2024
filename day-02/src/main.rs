@@ -1,29 +1,41 @@
+use std::{fs::File, io::{self, BufRead}};
+
+fn calculate_safety(levels: &Vec<u8>) -> bool {
+    let order = levels[1] > levels[0];
+    for i in 1..levels.len() {
+        if (levels[i] > levels[i - 1]) != order {
+            return false
+        }
+        if (levels[i].abs_diff(levels[i - 1])) == 0 {
+            return false
+        }
+
+        if (levels[i].abs_diff(levels[i - 1])) > 3 {
+            return false
+        }
+    }
+    true
+}
 
 fn main() -> io::Result<()> {
-    let path = "input.txt";
+    let path = "example.txt";
     let input = File::open(&path)?;
     let buffered = io::BufReader::new(input);
 
-    let mut left: Vec<i32> = Vec::new();
-    let mut right: Vec<i32> = Vec::new();
-
+    let mut score = 0;
     for line in buffered.lines() {
         if let Ok(line) = line {
-            let mut parts = line.split_whitespace();
-            if let (Some(part1), Some(part2)) = (parts.next(), parts.next()) {
-                if let (Ok(num1), Ok(num2)) = (part1.parse::<i32>(), part2.parse::<i32>()) {
-                    left.push(num1);
-                    right.push(num2);
-                }
+            let parts = line.split_whitespace();
+            let levels = parts.map(|x| x.parse::<u8>().unwrap()).collect();
+            let safe = calculate_safety(&levels);
+            println!("Levels: {:?}, Safe: {}", levels, safe);
+            if safe {
+                score += 1;
             }
         }
     }
 
-    let total_distance = calculate_total_distance(left.clone(), right.clone());
-    println!("Total distance: {}", total_distance);
-
-    let similarity = calculate_similarity(left, right); 
-    println!("Similarity: {}", similarity);
+    println!("Score: {}", score);
 
     Ok(())
 }
