@@ -86,7 +86,7 @@ impl State<'_> {
 }
 
 fn main() -> io::Result<()> {
-    let path = "example.txt";
+    let path = "input.txt";
     let input_matrix = File::open(&path)?;
     //read the file and put each character in a cell in a matrix
     let mut matrix: Vec<Vec<Cell>> = Vec::new();
