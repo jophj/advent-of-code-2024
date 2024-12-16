@@ -1,4 +1,4 @@
-use pathfinding::prelude::dijkstra;
+use pathfinding::prelude::{dijkstra, dijkstra_all};
 use std::{
     fs::File,
     io::{self, BufRead},
@@ -48,7 +48,7 @@ struct State<'a> {
 }
 
 fn same_position(a: &Position, b: &Position) -> bool {
-    a.x == b.x && a.y == b.y
+    a == b
 }
 
 impl State<'_> {
@@ -86,7 +86,7 @@ impl State<'_> {
 }
 
 fn main() -> io::Result<()> {
-    let path = "input.txt";
+    let path = "example.txt";
     let input_matrix = File::open(&path)?;
     //read the file and put each character in a cell in a matrix
     let mut matrix: Vec<Vec<Cell>> = Vec::new();
@@ -189,5 +189,15 @@ fn main() -> io::Result<()> {
         }
         println!();
     }
+
+    let all_paths = dijkstra_all(&current_state, |p| p.successors(&matrix));
+    let ending_paths: Vec<_> = all_paths
+        .iter()
+        .filter(|p| &p.0.cell.position == &end)
+        .collect();
+
+    println!("Paths to end: {:?}", ending_paths.len());
+    // I can't find the actual paths with this library sigh
+
     Ok(())
 }
