@@ -1,5 +1,6 @@
-use pathfinding::prelude::dfs;
+use pathfinding::prelude::{astar, dfs};
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, BufRead},
     slice::Iter,
@@ -51,7 +52,7 @@ fn same_position(a: &Position, b: &Position) -> bool {
     a == b
 }
 
-fn successors(state: State, matrix: &Vec<Vec<Cell>>) -> Vec<State> {
+fn successors(state: State, matrix: &Vec<Vec<Cell>>) -> Vec<(State, usize)> {
     let mut successors = Vec::new();
 
     for next_direction in Direction::iterator() {
@@ -67,14 +68,26 @@ fn successors(state: State, matrix: &Vec<Vec<Cell>>) -> Vec<State> {
                 direction: next_direction.clone(),
             };
 
-            successors.push(state);
+            successors.push((state, 1));
         }
     }
     successors
 }
 
+fn print_matrix(matrix: &Vec<Vec<Cell>>) {
+    for row in matrix {
+        for cell in row {
+            match cell.content {
+                Content::Empty => print!("."),
+                Content::Wall => print!("#"),
+            }
+        }
+        println!();
+    }
+}
+
 fn main() -> io::Result<()> {
-    let path = "example.txt";
+    let path = "input.txt";
     let input_matrix = File::open(&path)?;
     //read the file and put each character in a cell in a matrix
     let mut matrix: Vec<Vec<Cell>> = Vec::new();
@@ -117,23 +130,7 @@ fn main() -> io::Result<()> {
     }
 
     // print the matrix
-    for row in matrix.iter() {
-        for cell in row.iter() {
-            let c = match cell.content {
-                Content::Empty => '.',
-                Content::Wall => '#',
-            };
-            if same_position(&cell.position, &start) {
-                print!("S");
-            } else if same_position(&cell.position, &end) {
-                print!("E");
-            } else {
-                print!("{}", c);
-            }
-        }
-        println!();
-    }
-
+    print_matrix(&matrix);
     println!("Start: ({}, {})", start.x, start.y);
     println!("End: ({}, {})", end.x, end.y);
 
@@ -141,15 +138,67 @@ fn main() -> io::Result<()> {
         cell: matrix[start.y][start.x].clone(),
         direction: Direction::Right,
     };
-    let mut current_state = initial_state;
-    let result = dfs(
-        current_state,
+    let result = astar(
+        &initial_state,
         |p| successors(p.clone(), &&matrix),
+        |s| 1,
         |p| same_position(&p.cell.position, &end),
     );
 
-    println!("{:?}", result);
-    println!("Length {}", result.unwrap().len());
+    let steps = result.unwrap().1;
+    println!("Steps {}", steps);
 
+    let mut cheats = HashMap::new();
+    cheats.insert(0, (1, steps));
+    // println!("{:?}", cheats);
+
+    for i in 1..matrix.len() - 1 {
+        for j in 1..matrix[i].len() - 1 {
+            if &matrix[i][j].content == &Content::Wall {
+                let cheat_cell = Cell {
+                    content: Content::Empty,
+                    position: Position { x: j, y: i },
+                };
+
+                matrix[i][j] = cheat_cell;
+                // print_matrix(&matrix);
+                let result = astar(
+                    &initial_state,
+                    |p| successors(p.clone(), &&matrix),
+                    |s| 1,
+                    |p| same_position(&p.cell.position, &end),
+                );
+                let cheated_steps = result.unwrap().1;
+                let saved_steps = steps - cheated_steps;
+                println!("Cheated Steps {}, saves {}", cheated_steps, saved_steps);
+                if !cheats.contains_key(&saved_steps) {
+                    cheats.insert(saved_steps, (1, cheated_steps));
+                } else {
+                    let count = cheats.get(&saved_steps).unwrap();
+                    cheats.insert(saved_steps, (count.0 + 1, cheated_steps));
+                }
+
+                let restored_cell = Cell {
+                    content: Content::Wall,
+                    position: Position { x: j, y: i },
+                };
+                matrix[i][j] = restored_cell;
+            }
+        }
+    }
+
+    let mut saves_100 = 0;
+    let mut sorted_keys: Vec<_> = cheats.into_iter().collect();
+    sorted_keys.sort_by(|x, y| x.0.cmp(&y.0));
+    for (key, value) in sorted_keys {
+        println!(
+            "Saved steps: {}, count: {}, cheated steps: {}",
+            key, value.0, value.1
+        );
+        if key >= 100 {
+            saves_100 += value.0;
+        }
+    }
+    println!("Saves 100: {}", saves_100);
     Ok(())
 }
