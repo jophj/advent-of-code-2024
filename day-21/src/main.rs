@@ -8,6 +8,7 @@ enum Direction {
     Down,
     Left,
     Right,
+    Forward,
 }
 
 fn generate_numpad() -> HashMap<char, Position> {
@@ -95,6 +96,24 @@ fn find_numpad_path(
     path
 }
 
+fn calculate_numpad_actions(
+    numpad: &HashMap<char, Position>,
+    input: Vec<char>,
+    start_char: char,
+) -> Vec<Direction> {
+    let mut directions = vec![];
+    let mut current_char = start_char;
+
+    for d in input {
+        let path = find_numpad_path(numpad, current_char, d);
+        directions.extend(path);
+        directions.push(Direction::Forward);
+        current_char = d;
+    }
+
+    directions
+}
+
 fn main() -> io::Result<()> {
     let path = "input.txt";
     let numpad = generate_numpad();
@@ -103,11 +122,30 @@ fn main() -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{find_numpad_path, generate_numpad, Direction};
+    use crate::{calculate_numpad_actions, find_numpad_path, generate_numpad, Direction};
 
     #[test]
     fn should_pass() {
         assert_eq!(true, true);
+    }
+
+    #[test]
+    fn with_029_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = calculate_numpad_actions(&numpad, vec!['0', '2', '9', 'A'], 'A');
+        let mapped = path
+            .iter()
+            .map(|d| match d {
+                Direction::Up => '^',
+                Direction::Down => 'v',
+                Direction::Left => '<',
+                Direction::Right => '>',
+                Direction::Forward => 'A',
+            })
+            .collect::<String>();
+
+        assert_eq!(mapped, "<A^A>^^AvvvA");
     }
 
     #[test]
