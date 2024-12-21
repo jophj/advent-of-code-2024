@@ -21,17 +21,21 @@ fn generate_numpad() -> HashMap<char, Position> {
         ('1', Position(0, 2)),
         ('2', Position(1, 2)),
         ('3', Position(2, 2)),
-        ('0', Position(1, 2)),
+        ('0', Position(1, 3)),
         ('A', Position(2, 3)),
     ])
 }
 
-fn find_numpad_path(numpad: &HashMap<char, Position>, start: char, end: char) -> Vec<Direction> {
-    let start = numpad.get(&start).unwrap();
-    let end = numpad.get(&end).unwrap();
+fn find_numpad_path(
+    numpad: &HashMap<char, Position>,
+    start_char: char,
+    end_char: char,
+) -> Vec<Direction> {
+    let start = numpad.get(&start_char).unwrap();
+    let end = numpad.get(&end_char).unwrap();
     let mut path = vec![];
 
-    if (start.0 < 3 && start.1 < 3) && (end.0 < 3 && end.1 < 3) {
+    if start.1 < 3 && end.1 < 3 {
         let mut delta_x = end.0 - start.0;
         let mut delta_y = end.1 - start.1;
 
@@ -54,6 +58,38 @@ fn find_numpad_path(numpad: &HashMap<char, Position>, start: char, end: char) ->
                 delta_y += 1;
             }
         }
+    }
+
+    if (start.0 < 3 && start.1 < 3) && end.1 == 3 {
+        if end_char == '0' {
+            let partial = find_numpad_path(numpad, start_char, '2');
+            path.extend(partial);
+            path.push(Direction::Down);
+        } else if end_char == 'A' {
+            let partial = find_numpad_path(numpad, start_char, '3');
+            path.extend(partial);
+            path.push(Direction::Down);
+        }
+    }
+
+    if start.1 == 3 && end.1 < 3 {
+        if start_char == '0' {
+            path.push(Direction::Up);
+            let partial = find_numpad_path(numpad, '2', end_char);
+            path.extend(partial);
+        } else if end_char == 'A' {
+            path.push(Direction::Up);
+            let partial = find_numpad_path(numpad, '3', end_char);
+            path.extend(partial);
+        }
+    }
+
+    if end_char == 'A' && start_char == '0' {
+        path.push(Direction::Right);
+    }
+
+    if end_char == '0' && start_char == 'A' {
+        path.push(Direction::Left);
     }
 
     path
@@ -89,11 +125,87 @@ mod tests {
             ]
         );
     }
+
     #[test]
     fn with_2_9_should_find_path() {
         let numpad = generate_numpad();
 
         let path = find_numpad_path(&numpad, '2', '9');
         assert_eq!(path, vec![Direction::Right, Direction::Up, Direction::Up,]);
+    }
+
+    #[test]
+    fn with_1_0_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '1', '0');
+        assert_eq!(path, vec![Direction::Right, Direction::Down]);
+    }
+
+    #[test]
+    fn with_9_0_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '9', '0');
+        assert_eq!(
+            path,
+            vec![
+                Direction::Left,
+                Direction::Down,
+                Direction::Down,
+                Direction::Down
+            ]
+        );
+    }
+
+    #[test]
+    fn with_3_0_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '3', '0');
+        assert_eq!(path, vec![Direction::Left, Direction::Down]);
+    }
+
+    #[test]
+    fn with_1_A_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '1', 'A');
+        assert_eq!(
+            path,
+            vec![Direction::Right, Direction::Right, Direction::Down]
+        );
+    }
+
+    #[test]
+    fn with_0_1_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '0', '1');
+        assert_eq!(path, vec![Direction::Up, Direction::Left]);
+    }
+
+    #[test]
+    fn with_A_2_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '0', '1');
+        assert_eq!(path, vec![Direction::Up, Direction::Left]);
+    }
+
+    #[test]
+    fn with_A_0_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, 'A', '0');
+        assert_eq!(path, vec![Direction::Left]);
+    }
+
+    #[test]
+    fn with_0_A_should_find_path() {
+        let numpad = generate_numpad();
+
+        let path = find_numpad_path(&numpad, '0', 'A');
+        assert_eq!(path, vec![Direction::Right]);
     }
 }
