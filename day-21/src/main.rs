@@ -1,8 +1,8 @@
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, path};
 
 struct Position(i8, i8);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Direction {
     Up,
     Down,
@@ -96,6 +96,20 @@ fn find_numpad_path(
     path
 }
 
+fn calculate_keypad_actions(input: Vec<Direction>, start: Direction) -> Vec<Direction> {
+    let mut directions = vec![];
+    let mut current_direction = start;
+
+    for d in input {
+        let path = find_keypad_path(current_direction, d.clone());
+        directions.extend(path);
+        directions.push(Direction::Forward);
+        current_direction = d;
+    }
+
+    directions
+}
+
 fn calculate_numpad_actions(
     numpad: &HashMap<char, Position>,
     input: Vec<char>,
@@ -114,6 +128,81 @@ fn calculate_numpad_actions(
     directions
 }
 
+fn find_keypad_path(start: Direction, end: Direction) -> Vec<Direction> {
+    let mut path = vec![];
+
+    if (start == end) {
+        return path;
+    }
+
+    match start {
+        Direction::Left => match end {
+            Direction::Down => {
+                path.push(Direction::Right);
+            }
+            _ => {
+                path.push(Direction::Right);
+                let partial = find_keypad_path(Direction::Down, end);
+                path.extend(partial);
+            }
+        },
+        Direction::Down => match end {
+            Direction::Forward => {
+                path.push(Direction::Right);
+                path.push(Direction::Up);
+            }
+            _ => {
+                path.push(end);
+            }
+        },
+        Direction::Right => match end {
+            Direction::Forward => {
+                path.push(Direction::Up);
+            }
+            Direction::Down => {
+                path.push(Direction::Left);
+            }
+            _ => {
+                path.push(Direction::Left);
+                path.push(end);
+            }
+        },
+        Direction::Up => match end {
+            Direction::Forward => {
+                path.push(Direction::Right);
+            }
+            Direction::Down => {
+                path.push(Direction::Down);
+            }
+            _ => {
+                path.push(Direction::Down);
+                path.push(end);
+            }
+        },
+        Direction::Forward => match end {
+            Direction::Right => {
+                path.push(Direction::Down);
+            }
+            Direction::Up => {
+                path.push(Direction::Left);
+            }
+            // added to comply with the example
+            Direction::Left => {
+                path.push(Direction::Down);
+                path.push(Direction::Left);
+                path.push(Direction::Left);
+            }
+            _ => {
+                path.push(Direction::Left);
+                let partial = find_keypad_path(Direction::Up, end);
+                path.extend(partial);
+            }
+        },
+    }
+
+    path
+}
+
 fn main() -> io::Result<()> {
     let path = "input.txt";
     let numpad = generate_numpad();
@@ -122,11 +211,81 @@ fn main() -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{calculate_numpad_actions, find_numpad_path, generate_numpad, Direction};
+    use crate::{
+        calculate_keypad_actions, calculate_numpad_actions, find_keypad_path, find_numpad_path,
+        generate_numpad, Direction,
+    };
 
     #[test]
-    fn should_pass() {
-        assert_eq!(true, true);
+    fn with_EXAMPLE_should_find_path() {
+        let input = "<A^A>^^AvvvA"
+            .chars()
+            // skip the first character
+            .map(|c| match c {
+                '<' => Direction::Left,
+                '>' => Direction::Right,
+                '^' => Direction::Up,
+                'v' => Direction::Down,
+                'A' => Direction::Forward,
+                _ => Direction::Forward,
+            })
+            // remove the last item
+            .collect();
+        let path = calculate_keypad_actions(input, Direction::Forward);
+
+        let mapped = path
+            .iter()
+            .map(|d| match d {
+                Direction::Up => '^',
+                Direction::Down => 'v',
+                Direction::Left => '<',
+                Direction::Right => '>',
+                Direction::Forward => 'A',
+            })
+            .collect::<String>();
+        assert_eq!(mapped, "v<<A>>^A<A>AvA<^AA>A<vAAA>^A");
+    }
+
+    #[test]
+    fn with_AA() {
+        let path = find_keypad_path(Direction::Forward, Direction::Forward);
+        assert_eq!(path, vec![]);
+    }
+
+    #[test]
+    fn with_A_L() {
+        let path = find_keypad_path(Direction::Forward, Direction::Left);
+        assert_eq!(
+            path,
+            vec![Direction::Left, Direction::Down, Direction::Left]
+        );
+    }
+
+    #[test]
+    fn with_L_D() {
+        let path = find_keypad_path(Direction::Left, Direction::Down);
+        assert_eq!(path, vec![Direction::Right]);
+    }
+
+    #[test]
+    fn with_L_A() {
+        let path = find_keypad_path(Direction::Left, Direction::Forward);
+        assert_eq!(
+            path,
+            vec![Direction::Right, Direction::Right, Direction::Up]
+        );
+    }
+
+    #[test]
+    fn with_R_U() {
+        let path = find_keypad_path(Direction::Right, Direction::Up);
+        assert_eq!(path, vec![Direction::Left, Direction::Up]);
+    }
+
+    #[test]
+    fn with_U_L() {
+        let path = find_keypad_path(Direction::Up, Direction::Left);
+        assert_eq!(path, vec![Direction::Down, Direction::Left]);
     }
 
     #[test]
