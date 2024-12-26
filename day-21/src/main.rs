@@ -321,7 +321,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(Strokes(map_code(keys)), 14);
+            let strokes = cost(Strokes(map_code(keys)), 16);
             let result = score(&strokes, code);
             final_score += result;
         });
