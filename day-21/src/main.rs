@@ -58,6 +58,7 @@ fn map_code(input: &str) -> Vec<Direction> {
 fn generate_map() -> HashMap<(Direction, Direction), Vec<Direction>> {
     let map: HashMap<(Direction, Direction), Vec<Direction>> = HashMap::from([
         ((Direction::Right, Direction::Right), vec![]),
+        ((Direction::Right, Direction::Down), vec![Direction::Left]),
         ((Direction::Right, Direction::Forward), vec![Direction::Up]),
         (
             (Direction::Forward, Direction::Left),
@@ -76,6 +77,10 @@ fn generate_map() -> HashMap<(Direction, Direction), Vec<Direction>> {
         (
             (Direction::Up, Direction::Left),
             vec![Direction::Down, Direction::Left],
+        ),
+        (
+            (Direction::Up, Direction::Right),
+            vec![Direction::Right, Direction::Down],
         ),
         ((Direction::Up, Direction::Forward), vec![Direction::Right]),
         ((Direction::Up, Direction::Up), vec![]),
@@ -106,7 +111,7 @@ fn generate_map() -> HashMap<(Direction, Direction), Vec<Direction>> {
 }
 
 fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
-    println!("Mapping {} to {}", start, end);
+    // println!("Mapping {} to {}", start, end);
     let map = generate_map();
     let mut mapped = map.get(&(start, end)).unwrap().clone();
     mapped.push(Direction::Forward);
@@ -121,7 +126,7 @@ fn cost(strokes: &Strokes, depth: usize) -> Strokes {
 
     let mut mapped = vec![];
     mapped.extend(map_strokes(Direction::Forward, strokes.0[0]));
-    println!("{}", Strokes(mapped.clone()));
+    // println!("{}", Strokes(mapped.clone()));
     for i in 0..strokes.0.len() - 1 {
         // get next without advancing the iterator
         let current = &strokes.0[i];
@@ -626,10 +631,58 @@ mod tests {
             let strokes = cost(&Strokes(map_code(keys)), 2);
             let result = score(&strokes, code);
             final_score += result;
-            println!("{}", strokes);
-            println!("{}", result);
         });
 
         assert_eq!(final_score, 126384);
+    }
+
+    #[test]
+    fn input_part_1() {
+        // 480A
+        // 965A
+        // 140A
+        // 341A
+        // 285A
+        let codes = vec![
+            ("480A", "^^<<A^>AvvvA>A"),
+            ("965A", "^^^AvA<Avv>A"),
+            ("140A", "^<<A^A>vvA>A"),
+            ("341A", "^A<<^AvA>>vA"),
+            ("285A", "<^A^^AvAvv>A"),
+        ];
+
+        let mut final_score = 0;
+        codes.iter().for_each(|(code, keys)| {
+            let strokes = cost(&Strokes(map_code(keys)), 2);
+            let result = score(&strokes, code);
+            final_score += result;
+        });
+
+        println!("{}", final_score);
+    }
+
+    #[test]
+    fn input_part_2() {
+        // 480A
+        // 965A
+        // 140A
+        // 341A
+        // 285A
+        let codes = vec![
+            ("480A", "^^<<A^>AvvvA>A"),
+            ("965A", "^^^AvA<Avv>A"),
+            ("140A", "^<<A^A>vvA>A"),
+            ("341A", "^A<<^AvA>>vA"),
+            ("285A", "<^A^^AvAvv>A"),
+        ];
+
+        let mut final_score = 0;
+        codes.iter().for_each(|(code, keys)| {
+            let strokes = cost(&Strokes(map_code(keys)), 25);
+            let result = score(&strokes, code);
+            final_score += result;
+        });
+
+        println!("{}", final_score);
     }
 }
