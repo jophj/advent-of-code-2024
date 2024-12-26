@@ -1,4 +1,5 @@
 use core::fmt;
+use enum_map::{enum_map, Enum, EnumMap};
 use lazy_static::lazy_static;
 use std::{collections::HashMap, fmt::Display, vec};
 
@@ -8,13 +9,13 @@ fn main() {
 
 struct Position(i8, i8);
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
+#[derive(Enum, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Direction {
-    Up,
-    Down,
-    Left,
     Right,
+    Down,
     Forward,
+    Up,
+    Left,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -58,75 +59,61 @@ fn map_code(input: &str) -> Vec<Direction> {
 }
 
 lazy_static! {
-    static ref MAP: HashMap<(Direction, Direction), Vec<Direction>> = {
-        HashMap::from([
-            ((Direction::Right, Direction::Right), vec![]),
-            ((Direction::Right, Direction::Down), vec![Direction::Left]),
-            ((Direction::Right, Direction::Forward), vec![Direction::Up]),
-            (
-                (Direction::Forward, Direction::Left),
-                vec![Direction::Down, Direction::Left, Direction::Left],
-            ),
-            ((Direction::Forward, Direction::Up), vec![Direction::Left]),
-            ((Direction::Forward, Direction::Forward), vec![]),
-            (
-                (Direction::Forward, Direction::Down),
-                vec![Direction::Down, Direction::Left],
-            ),
-            (
-                (Direction::Forward, Direction::Right),
-                vec![Direction::Down],
-            ),
-            (
-                (Direction::Up, Direction::Left),
-                vec![Direction::Down, Direction::Left],
-            ),
-            (
-                (Direction::Up, Direction::Right),
-                vec![Direction::Right, Direction::Down],
-            ),
-            ((Direction::Up, Direction::Forward), vec![Direction::Right]),
-            ((Direction::Up, Direction::Up), vec![]),
-            (
-                (Direction::Left, Direction::Up),
-                vec![Direction::Right, Direction::Up],
-            ),
-            ((Direction::Left, Direction::Down), vec![Direction::Right]),
-            ((Direction::Left, Direction::Left), vec![]),
-            (
-                (Direction::Left, Direction::Forward),
-                vec![Direction::Right, Direction::Right, Direction::Up],
-            ),
-            ((Direction::Down, Direction::Right), vec![Direction::Right]),
-            ((Direction::Down, Direction::Left), vec![Direction::Left]),
-            (
-                (Direction::Down, Direction::Forward),
-                vec![Direction::Right, Direction::Up],
-            ),
-            ((Direction::Down, Direction::Down), vec![]),
-            (
-                (Direction::Right, Direction::Up),
-                vec![Direction::Up, Direction::Left],
-            ),
-        ])
+    static ref MAP: EnumMap<Direction, EnumMap<Direction, Vec<Direction>>> = enum_map! {
+        Direction::Right => enum_map! {
+            Direction::Right => vec![],
+            Direction::Down => vec![Direction::Left],
+            Direction::Forward => vec![Direction::Up],
+            Direction::Up => vec![Direction::Up, Direction::Left],
+            Direction::Left => vec![],
+        },
+        Direction::Down => enum_map! {
+            Direction::Right => vec![Direction::Right],
+            Direction::Down => vec![],
+            Direction::Forward => vec![Direction::Right, Direction::Up],
+            Direction::Up => vec![Direction::Right, Direction::Up],
+            Direction::Left => vec![Direction::Left],
+        },
+        Direction::Forward => enum_map! {
+            Direction::Right => vec![Direction::Down],
+            Direction::Down => vec![Direction::Down, Direction::Left],
+            Direction::Forward => vec![],
+            Direction::Up => vec![Direction::Left],
+            Direction::Left => vec![Direction::Down, Direction::Left, Direction::Left],
+        },
+        Direction::Up => enum_map! {
+            Direction::Right => vec![Direction::Right, Direction::Down],
+            Direction::Down => vec![Direction::Down, Direction::Left],
+            Direction::Forward => vec![Direction::Right],
+            Direction::Up => vec![],
+            Direction::Left => vec![Direction::Down, Direction::Left],
+        },
+        Direction::Left => enum_map! {
+            Direction::Right => vec![Direction::Right, Direction::Up],
+            Direction::Down => vec![Direction::Right],
+            Direction::Forward => vec![Direction::Right, Direction::Right, Direction::Up],
+            Direction::Up => vec![Direction::Right, Direction::Up],
+            Direction::Left => vec![],
+        },
     };
 }
 
-fn map_strokes(start: &Direction, end: &Direction) -> Vec<Direction> {
-    let mut mapped = MAP.get(&(*start, *end)).unwrap().clone();
-    mapped.push(Direction::Forward);
-    mapped
+fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
+    let mapped = &MAP[start][end];
+    let mut result = mapped.clone();
+    result.push(Direction::Forward);
+    result
 }
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     for _ in 0..depth {
         let mut mapped = Vec::with_capacity(strokes.0.len() * 2);
 
-        mapped.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
+        mapped.extend(map_strokes(Direction::Forward, strokes.0[0]));
 
         for window in strokes.0.windows(2) {
             if let [current, next] = window {
-                mapped.extend(map_strokes(current, next));
+                mapped.extend(map_strokes(*current, *next));
             }
         }
 
