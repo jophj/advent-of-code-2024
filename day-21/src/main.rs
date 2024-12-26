@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, fmt::Display, io, path, vec};
+use std::{collections::HashMap, fmt::Display, io, path, sync::Mutex, vec};
 
 struct Position(i8, i8);
 
@@ -55,68 +55,71 @@ fn map_code(input: &str) -> Vec<Direction> {
 // TODO singleton
 // up has priority over left
 // right has priority over down
-fn generate_map() -> HashMap<(Direction, Direction), Vec<Direction>> {
-    let map: HashMap<(Direction, Direction), Vec<Direction>> = HashMap::from([
-        ((Direction::Right, Direction::Right), vec![]),
-        ((Direction::Right, Direction::Down), vec![Direction::Left]),
-        ((Direction::Right, Direction::Forward), vec![Direction::Up]),
-        (
-            (Direction::Forward, Direction::Left),
-            vec![Direction::Down, Direction::Left, Direction::Left],
-        ),
-        ((Direction::Forward, Direction::Up), vec![Direction::Left]),
-        ((Direction::Forward, Direction::Forward), vec![]),
-        (
-            (Direction::Forward, Direction::Down),
-            vec![Direction::Down, Direction::Left],
-        ),
-        (
-            (Direction::Forward, Direction::Right),
-            vec![Direction::Down],
-        ),
-        (
-            (Direction::Up, Direction::Left),
-            vec![Direction::Down, Direction::Left],
-        ),
-        (
-            (Direction::Up, Direction::Right),
-            vec![Direction::Right, Direction::Down],
-        ),
-        ((Direction::Up, Direction::Forward), vec![Direction::Right]),
-        ((Direction::Up, Direction::Up), vec![]),
-        (
-            (Direction::Left, Direction::Up),
-            vec![Direction::Right, Direction::Up],
-        ),
-        ((Direction::Left, Direction::Down), vec![Direction::Right]),
-        ((Direction::Left, Direction::Left), vec![]),
-        (
-            (Direction::Left, Direction::Forward),
-            vec![Direction::Right, Direction::Right, Direction::Up],
-        ),
-        ((Direction::Down, Direction::Right), vec![Direction::Right]),
-        ((Direction::Down, Direction::Left), vec![Direction::Left]),
-        (
-            (Direction::Down, Direction::Forward),
-            vec![Direction::Right, Direction::Up],
-        ),
-        ((Direction::Down, Direction::Down), vec![]),
-        (
-            (Direction::Right, Direction::Up),
-            vec![Direction::Up, Direction::Left],
-        ),
-    ]);
+use lazy_static::lazy_static;
 
-    map
+lazy_static! {
+    static ref MAP: HashMap<(Direction, Direction), Vec<Direction>> = {
+        HashMap::from([
+            ((Direction::Right, Direction::Right), vec![]),
+            ((Direction::Right, Direction::Down), vec![Direction::Left]),
+            ((Direction::Right, Direction::Forward), vec![Direction::Up]),
+            (
+                (Direction::Forward, Direction::Left),
+                vec![Direction::Down, Direction::Left, Direction::Left],
+            ),
+            ((Direction::Forward, Direction::Up), vec![Direction::Left]),
+            ((Direction::Forward, Direction::Forward), vec![]),
+            (
+                (Direction::Forward, Direction::Down),
+                vec![Direction::Down, Direction::Left],
+            ),
+            (
+                (Direction::Forward, Direction::Right),
+                vec![Direction::Down],
+            ),
+            (
+                (Direction::Up, Direction::Left),
+                vec![Direction::Down, Direction::Left],
+            ),
+            (
+                (Direction::Up, Direction::Right),
+                vec![Direction::Right, Direction::Down],
+            ),
+            ((Direction::Up, Direction::Forward), vec![Direction::Right]),
+            ((Direction::Up, Direction::Up), vec![]),
+            (
+                (Direction::Left, Direction::Up),
+                vec![Direction::Right, Direction::Up],
+            ),
+            ((Direction::Left, Direction::Down), vec![Direction::Right]),
+            ((Direction::Left, Direction::Left), vec![]),
+            (
+                (Direction::Left, Direction::Forward),
+                vec![Direction::Right, Direction::Right, Direction::Up],
+            ),
+            ((Direction::Down, Direction::Right), vec![Direction::Right]),
+            ((Direction::Down, Direction::Left), vec![Direction::Left]),
+            (
+                (Direction::Down, Direction::Forward),
+                vec![Direction::Right, Direction::Up],
+            ),
+            ((Direction::Down, Direction::Down), vec![]),
+            (
+                (Direction::Right, Direction::Up),
+                vec![Direction::Up, Direction::Left],
+            ),
+        ])
+    };
 }
 
 fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
-    // println!("Mapping {} to {}", start, end);
-    let map = generate_map();
-    let mut mapped = map.get(&(start, end)).unwrap().clone();
+    let mut mapped = MAP.get(&(start, end)).unwrap().clone();
     mapped.push(Direction::Forward);
+    mapped
+}
 
-    mapped.to_vec()
+lazy_static! {
+    static ref MEMO: Mutex<HashMap<(Vec<Direction>, usize), Strokes>> = Mutex::new(HashMap::new());
 }
 
 fn cost(strokes: &Strokes, depth: usize) -> Strokes {
@@ -124,19 +127,33 @@ fn cost(strokes: &Strokes, depth: usize) -> Strokes {
         return strokes.clone();
     }
 
-    let mut mapped = vec![];
-    mapped.extend(map_strokes(Direction::Forward, strokes.0[0]));
-    // println!("{}", Strokes(mapped.clone()));
-    for i in 0..strokes.0.len() - 1 {
-        // get next without advancing the iterator
-        let current = &strokes.0[i];
-        let next = &strokes.0[i + 1];
-        // TODO slices
-        let partial = map_strokes(current.clone(), next.clone());
-        mapped.extend(partial);
+    let key = (strokes.0.clone(), depth);
+    {
+        let memo = MEMO.lock().unwrap();
+        if let Some(result) = memo.get(&key) {
+            return result.clone();
+        }
     }
 
-    cost(&Strokes(mapped), depth - 1)
+    let mut mapped = Vec::with_capacity(strokes.0.len() * 4);
+    if let Some(first) = strokes.0.first() {
+        mapped.extend(map_strokes(Direction::Forward, *first));
+    }
+
+    for window in strokes.0.windows(2) {
+        if let [current, next] = window {
+            mapped.extend(map_strokes(*current, *next));
+        }
+    }
+
+    let result = cost(&Strokes(mapped), depth - 1);
+
+    {
+        let mut memo = MEMO.lock().unwrap();
+        memo.insert(key, result.clone());
+    }
+
+    result
 }
 
 fn generate_numpad() -> HashMap<char, Position> {
@@ -660,6 +677,31 @@ mod tests {
 
         println!("{}", final_score);
         assert_eq!(final_score, 152942);
+    }
+
+    #[test]
+    fn test_input_depth() {
+        // 480A
+        // 965A
+        // 140A
+        // 341A
+        // 285A
+        let codes = vec![
+            ("480A", "^^<<A^>AvvvA>A"),
+            ("965A", "^^^AvA<Avv>A"),
+            ("140A", "^<<A^A>vvA>A"),
+            ("341A", "^A<<^AvA>>vA"),
+            ("285A", "<^A^^AvAvv>A"),
+        ];
+
+        let mut final_score = 0;
+        codes.iter().for_each(|(code, keys)| {
+            let strokes = cost(&Strokes(map_code(keys)), 14);
+            let result = score(&strokes, code);
+            final_score += result;
+        });
+
+        println!("{}", final_score);
     }
 
     #[test]
