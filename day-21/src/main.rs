@@ -127,14 +127,6 @@ fn cost(strokes: &Strokes, depth: usize) -> Strokes {
         return strokes.clone();
     }
 
-    let key = (strokes.0.clone(), depth);
-    {
-        let memo = MEMO.lock().unwrap();
-        if let Some(result) = memo.get(&key) {
-            return result.clone();
-        }
-    }
-
     let mut mapped = Vec::with_capacity(strokes.0.len() * 4);
     if let Some(first) = strokes.0.first() {
         mapped.extend(map_strokes(Direction::Forward, *first));
@@ -147,11 +139,6 @@ fn cost(strokes: &Strokes, depth: usize) -> Strokes {
     }
 
     let result = cost(&Strokes(mapped), depth - 1);
-
-    {
-        let mut memo = MEMO.lock().unwrap();
-        memo.insert(key, result.clone());
-    }
 
     result
 }
@@ -696,7 +683,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(&Strokes(map_code(keys)), 14);
+            let strokes = cost(&Strokes(map_code(keys)), 16);
             let result = score(&strokes, code);
             final_score += result;
         });
