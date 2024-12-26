@@ -150,7 +150,7 @@ mod tests {
     use crate::{cost, map_code, score, Direction, Strokes};
 
     #[test]
-    fn ULDR_should_map_to_LADRARARA() {
+    fn uldr_should_map_to_ladrarara() {
         let keys = vec![
             Direction::Up,
             Direction::Left,
@@ -174,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn UL_should_map_to_LADLA() {
+    fn ul_should_map_to_ladla() {
         let keys = vec![Direction::Up, Direction::Left];
 
         let mapped = cost(Strokes(keys), 1);
