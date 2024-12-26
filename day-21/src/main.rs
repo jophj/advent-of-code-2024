@@ -101,7 +101,7 @@ fn map_strokes(start: &Direction, end: &Direction) -> &'static [Direction] {
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     for _ in 0..depth {
-        let mut mapped = Vec::with_capacity(strokes.0.len());
+        let mut mapped = Vec::new();
 
         mapped.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
 
