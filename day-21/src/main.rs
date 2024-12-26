@@ -112,23 +112,21 @@ lazy_static! {
     };
 }
 
-fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
-    let mut mapped = MAP.get(&(start, end)).unwrap().clone();
+fn map_strokes(start: &Direction, end: &Direction) -> Vec<Direction> {
+    let mut mapped = MAP.get(&(*start, *end)).unwrap().clone();
     mapped.push(Direction::Forward);
     mapped
 }
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     for _ in 0..depth {
-        let mut mapped = Vec::with_capacity(strokes.0.len() * 4);
+        let mut mapped = Vec::with_capacity(strokes.0.len() * 2);
 
-        if let Some(first) = strokes.0.first() {
-            mapped.extend(map_strokes(Direction::Forward, *first));
-        }
+        mapped.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
 
         for window in strokes.0.windows(2) {
             if let [current, next] = window {
-                mapped.extend(map_strokes(*current, *next));
+                mapped.extend(map_strokes(current, next));
             }
         }
 
@@ -336,7 +334,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(Strokes(map_code(keys)), 16);
+            let strokes = cost(Strokes(map_code(keys)), 14);
             let result = score(&strokes, code);
             final_score += result;
         });
