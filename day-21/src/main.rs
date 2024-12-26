@@ -100,18 +100,24 @@ fn map_strokes(start: &Direction, end: &Direction) -> &'static [Direction] {
 }
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
+    let mut buffer = Vec::with_capacity(strokes.0.len() * 4); // Pre-allocate a reasonable capacity
+
     for _ in 0..depth {
-        let mut mapped = Vec::new();
+        buffer.clear(); // Reuse the same buffer by clearing its contents
 
-        mapped.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
+        // Extend the buffer with the initial mapping
+        buffer.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
 
+        // Extend the buffer for each pair in the strokes
         for window in strokes.0.windows(2) {
             if let [current, next] = window {
-                mapped.extend(map_strokes(current, next));
+                buffer.extend(map_strokes(current, next));
             }
         }
 
-        strokes = Strokes(mapped);
+        // Update `strokes` to reference the data in the buffer
+        strokes.0.clear();
+        strokes.0.extend(buffer.iter());
     }
 
     strokes
