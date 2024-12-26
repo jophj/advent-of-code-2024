@@ -1,13 +1,11 @@
 use core::fmt;
 use enum_map::{enum_map, Enum, EnumMap};
 use lazy_static::lazy_static;
-use std::{collections::HashMap, fmt::Display, vec};
+use std::{fmt::Display, vec};
 
 fn main() {
     println!("AoC 21");
 }
-
-struct Position(i8, i8);
 
 #[derive(Enum, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Direction {
@@ -107,7 +105,7 @@ fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     for _ in 0..depth {
-        let mut mapped = Vec::with_capacity(strokes.0.len() * 2);
+        let mut mapped = Vec::with_capacity(strokes.0.len());
 
         mapped.extend(map_strokes(Direction::Forward, strokes.0[0]));
 
