@@ -659,6 +659,7 @@ mod tests {
         });
 
         println!("{}", final_score);
+        assert_eq!(final_score, 152942);
     }
 
     #[test]
