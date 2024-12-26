@@ -95,19 +95,19 @@ lazy_static! {
     };
 }
 
-fn map_strokes(start: Direction, end: Direction) -> &'static [Direction] {
-    &MAP[start][end]
+fn map_strokes(start: &Direction, end: &Direction) -> &'static [Direction] {
+    &MAP[*start][*end]
 }
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     for _ in 0..depth {
         let mut mapped = Vec::with_capacity(strokes.0.len());
 
-        mapped.extend(map_strokes(Direction::Forward, strokes.0[0]));
+        mapped.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
 
         for window in strokes.0.windows(2) {
             if let [current, next] = window {
-                mapped.extend(map_strokes(*current, *next));
+                mapped.extend(map_strokes(current, next));
             }
         }
 
