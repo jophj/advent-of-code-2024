@@ -98,8 +98,9 @@ lazy_static! {
 
 fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
     let mapped = &MAP[start][end];
-    let mut result = mapped.clone();
-    result.push(Direction::Forward);
+    let mut result = Vec::with_capacity(mapped.len() + 1); // Pre-allocate space for efficiency
+    result.extend_from_slice(mapped); // Append the existing elements
+    result.push(Direction::Forward); // Add the extra element
     result
 }
 
