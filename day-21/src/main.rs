@@ -1,5 +1,10 @@
 use core::fmt;
-use std::{collections::HashMap, fmt::Display, io, path, sync::Mutex, vec};
+use lazy_static::lazy_static;
+use std::{collections::HashMap, fmt::Display, vec};
+
+fn main() {
+    println!("AoC 21");
+}
 
 struct Position(i8, i8);
 
@@ -51,11 +56,6 @@ fn map_code(input: &str) -> Vec<Direction> {
         })
         .collect()
 }
-
-// TODO singleton
-// up has priority over left
-// right has priority over down
-use lazy_static::lazy_static;
 
 lazy_static! {
     static ref MAP: HashMap<(Direction, Direction), Vec<Direction>> = {
@@ -118,261 +118,24 @@ fn map_strokes(start: Direction, end: Direction) -> Vec<Direction> {
     mapped
 }
 
-lazy_static! {
-    static ref MEMO: Mutex<HashMap<(Vec<Direction>, usize), Strokes>> = Mutex::new(HashMap::new());
-}
+fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
+    for _ in 0..depth {
+        let mut mapped = Vec::with_capacity(strokes.0.len() * 4);
 
-fn cost(strokes: &Strokes, depth: usize) -> Strokes {
-    if depth == 0 {
-        return strokes.clone();
-    }
-
-    let mut mapped = Vec::with_capacity(strokes.0.len() * 4);
-    if let Some(first) = strokes.0.first() {
-        mapped.extend(map_strokes(Direction::Forward, *first));
-    }
-
-    for window in strokes.0.windows(2) {
-        if let [current, next] = window {
-            mapped.extend(map_strokes(*current, *next));
-        }
-    }
-
-    let result = cost(&Strokes(mapped), depth - 1);
-
-    result
-}
-
-fn generate_numpad() -> HashMap<char, Position> {
-    HashMap::from([
-        ('7', Position(0, 0)),
-        ('8', Position(1, 0)),
-        ('9', Position(2, 0)),
-        ('4', Position(0, 1)),
-        ('5', Position(1, 1)),
-        ('6', Position(2, 1)),
-        ('1', Position(0, 2)),
-        ('2', Position(1, 2)),
-        ('3', Position(2, 2)),
-        ('0', Position(1, 3)),
-        ('A', Position(2, 3)),
-    ])
-}
-
-fn find_numpad_path(
-    numpad: &HashMap<char, Position>,
-    start_char: char,
-    end_char: char,
-) -> Vec<Direction> {
-    let start = numpad.get(&start_char).unwrap();
-    let end = numpad.get(&end_char).unwrap();
-    let mut path = vec![];
-
-    if end_char == 'A' && start_char == '0' {
-        path.push(Direction::Right);
-        return path;
-    }
-
-    if end_char == '0' && start_char == 'A' {
-        path.push(Direction::Left);
-        return path;
-    }
-
-    if start.1 < 3 && end.1 < 3 {
-        let mut delta_x = end.0 - start.0;
-        let mut delta_y = end.1 - start.1;
-
-        if delta_x > 0 && delta_y > 0 {
-            while delta_x != 0 {
-                path.push(Direction::Right);
-                delta_x -= 1;
-            }
-
-            while delta_y != 0 {
-                path.push(Direction::Down);
-                delta_y -= 1;
-            }
-
-            return path;
+        if let Some(first) = strokes.0.first() {
+            mapped.extend(map_strokes(Direction::Forward, *first));
         }
 
-        if delta_y < 0 && delta_x < 0 {
-            while delta_y != 0 {
-                path.push(Direction::Up);
-                delta_y += 1;
-            }
-            while delta_x != 0 {
-                path.push(Direction::Left);
-                delta_x += 1;
-            }
-
-            return path;
-        }
-
-        while delta_x != 0 {
-            if delta_x > 0 {
-                path.push(Direction::Right);
-                delta_x -= 1;
-            } else {
-                path.push(Direction::Left);
-                delta_x += 1;
+        for window in strokes.0.windows(2) {
+            if let [current, next] = window {
+                mapped.extend(map_strokes(*current, *next));
             }
         }
 
-        while delta_y != 0 {
-            if delta_y > 0 {
-                path.push(Direction::Down);
-                delta_y -= 1;
-            } else {
-                path.push(Direction::Up);
-                delta_y += 1;
-            }
-        }
-
-        return path;
+        strokes = Strokes(mapped);
     }
 
-    if start.1 < 3 && end.1 == 3 {
-        if end_char == '0' {
-            let partial = find_numpad_path(numpad, start_char, '2');
-            path.extend(partial);
-            path.push(Direction::Down);
-        } else if end_char == 'A' {
-            let partial = find_numpad_path(numpad, start_char, '3');
-            path.extend(partial);
-            path.push(Direction::Down);
-        }
-
-        return path;
-    }
-
-    if start.1 == 3 && end.1 < 3 {
-        if start_char == '0' {
-            path.push(Direction::Up);
-            let partial = find_numpad_path(numpad, '2', end_char);
-            path.extend(partial);
-        } else if start_char == 'A' {
-            path.push(Direction::Up);
-            let partial = find_numpad_path(numpad, '3', end_char);
-            path.extend(partial);
-        }
-
-        return path;
-    }
-
-    return path;
-}
-
-fn calculate_keypad_actions(input: Vec<Direction>, start: Direction) -> Vec<Direction> {
-    let mut directions = vec![];
-    let mut current_direction = start;
-
-    for d in input {
-        let path = find_keypad_path(current_direction, d.clone());
-        directions.extend(path);
-        directions.push(Direction::Forward);
-        current_direction = d;
-    }
-
-    directions
-}
-
-fn calculate_numpad_actions(
-    numpad: &HashMap<char, Position>,
-    input: Vec<char>,
-    start_char: char,
-) -> Vec<Direction> {
-    let mut directions = vec![];
-    let mut current_char = start_char;
-
-    for d in input {
-        let path = find_numpad_path(numpad, current_char, d);
-        directions.extend(path);
-        directions.push(Direction::Forward);
-        current_char = d;
-    }
-
-    directions
-}
-
-fn find_keypad_path(start: Direction, end: Direction) -> Vec<Direction> {
-    let mut path = vec![];
-
-    if start == end {
-        return path;
-    }
-
-    match start {
-        Direction::Left => match end {
-            Direction::Down => {
-                path.push(Direction::Right);
-            }
-            Direction::Forward => {
-                path.push(Direction::Right);
-                path.push(Direction::Right);
-                path.push(Direction::Up);
-            }
-            _ => {
-                path.push(Direction::Right);
-                let partial = find_keypad_path(Direction::Down, end);
-                path.extend(partial);
-            }
-        },
-        Direction::Down => match end {
-            Direction::Forward => {
-                path.push(Direction::Right);
-                path.push(Direction::Up);
-            }
-            _ => {
-                path.push(end);
-            }
-        },
-        Direction::Right => match end {
-            Direction::Forward => {
-                path.push(Direction::Up);
-            }
-            Direction::Down => {
-                path.push(Direction::Left);
-            }
-            _ => {
-                path.push(Direction::Left);
-                path.push(end);
-            }
-        },
-        Direction::Up => match end {
-            Direction::Forward => {
-                path.push(Direction::Right);
-            }
-            Direction::Down => {
-                path.push(Direction::Down);
-            }
-            _ => {
-                path.push(Direction::Down);
-                path.push(end);
-            }
-        },
-        Direction::Forward => match end {
-            Direction::Right => {
-                path.push(Direction::Down);
-            }
-            Direction::Up => {
-                path.push(Direction::Left);
-            }
-            // added to comply with the example
-            Direction::Left => {
-                path.push(Direction::Down);
-                path.push(Direction::Left);
-                path.push(Direction::Left);
-            }
-            _ => {
-                path.push(Direction::Left);
-                let partial = find_keypad_path(Direction::Up, end);
-                path.extend(partial);
-            }
-        },
-    }
-
-    path
+    strokes
 }
 
 fn score(strokes: &Strokes, code: &str) -> usize {
@@ -384,109 +147,9 @@ fn score(strokes: &Strokes, code: &str) -> usize {
     score
 }
 
-fn main() -> io::Result<()> {
-    let path = "example.txt";
-    let text = std::fs::read_to_string(path)?;
-    let inputs = text
-        .lines()
-        .map(|l| l.chars().collect())
-        .collect::<Vec<Vec<char>>>();
-
-    let numpad = generate_numpad();
-
-    let mut result = 0;
-    for input in inputs {
-        let numpad_actions = calculate_numpad_actions(&numpad, input.clone(), 'A');
-        let keypad_1 = calculate_keypad_actions(numpad_actions, Direction::Forward);
-        let keypad_2 = calculate_keypad_actions(keypad_1, Direction::Forward);
-
-        // reduce input chars to a single string filtering only numeric chars
-        let len = keypad_2.len();
-        let input_str = input.iter().filter(|c| c.is_numeric()).collect::<String>();
-        let numerical = input_str.parse::<usize>().unwrap();
-        let score = len * numerical;
-        println!("The score is: {} * {} = {}", len, numerical, score);
-        result += score;
-    }
-
-    let test = "379A";
-    let numpad_actions = calculate_numpad_actions(&numpad, test.chars().collect(), 'A');
-    let keypad_1 = calculate_keypad_actions(numpad_actions.clone(), Direction::Forward);
-    let keypad_2 = calculate_keypad_actions(keypad_1.clone(), Direction::Forward);
-
-    let numpad_mapped = numpad_actions
-        .iter()
-        .map(|d| match d {
-            Direction::Up => "^",
-            Direction::Down => "v",
-            Direction::Left => "<",
-            Direction::Right => ">",
-            Direction::Forward => "A",
-        })
-        .collect::<String>();
-    println!("{:?}", numpad_mapped);
-
-    let mapped_1 = keypad_1
-        .iter()
-        .map(|d| match d {
-            Direction::Up => "^",
-            Direction::Down => "v",
-            Direction::Left => "<",
-            Direction::Right => ">",
-            Direction::Forward => "A",
-        })
-        .collect::<String>();
-
-    println!("{:?}", mapped_1);
-
-    // 379A
-    // ^A<<^^A>>AvvvA x prima
-    // ^A^^<<A>>AvvvA y prima
-    // <A>Av<<AA>^AA>AvAA^A<vAAA>^A   x prima
-    // <A>A<AAv<AA>>^AvAA^A<vAAA>^A   y prima
-    // v<<A >>^A vA ^A v<<A >>^AA<vA<A>>^AAvAA<^A>A<vA>^AA<A>Av<<A>A>^AAAvA<^A>A
-    // <v<A >>^A vA ^A <vA <AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A
-    // <v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A
-    // v<<A>>^AvA^Av<<A>>^AA<vA<A>>^AAvAA<^A>A<vA>^AA<A>Av<<A>A>^AAAvA<^A>A
-
-    // 456A
-    // ^<<^A>A>AvvA
-    // <Av<AA>^A>AvA^AvA^A<vAA>^A
-    // v<<A >>^A <vA<A>>^AAvA<^A>AvA^A<vA>^A<A>A<vA>^A<A>Av<<A>A>^AAvA<^A>A
-    // <v<A >>^A A<vA<A>>^AAvAA<^A>A<vA>^A<A>A<vA>^A<A>A<v<A>A>^AAvA<^A>A
-    // 980A
-    // A<vA<AA>>^AvAA<^A>Av<<A>A>^AAAvA<^A>A<vA>^A<A>A
-    // <v<A>>^AAAvA^A<vA<AA>>^AvAA<^A>A<v<A>A>^AAAvA<^A>A<vA>^A<A>A
-
-    // 029A
-    // <vA<AA>>^AvAA<^A>Av<<A>>^AvA^A<vA>^Av<<A>^A>AAvA^Av<<A>A>^AAAvA<^A>A
-    // <vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<v<A>^A>AAvA^A<v<A>A>^AAAvA<^A>A
-
-    let mapped = keypad_2
-        .iter()
-        .map(|d| match d {
-            Direction::Up => "^",
-            Direction::Down => "v",
-            Direction::Left => "<",
-            Direction::Right => ">",
-            Direction::Forward => "A",
-        })
-        .collect::<String>();
-
-    println!("{:?}", mapped);
-
-    // let result = keypad_2.len() * 29;
-    println!("The result is: {}", result);
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        calculate_keypad_actions, calculate_numpad_actions, cost, find_keypad_path,
-        find_numpad_path, generate_numpad, map_code, map_strokes, score, Direction, Strokes,
-    };
+    use crate::{cost, map_code, score, Direction, Strokes};
 
     #[test]
     fn ULDR_should_map_to_LADRARARA() {
@@ -497,7 +160,7 @@ mod tests {
             Direction::Right,
         ];
 
-        let mapped = cost(&Strokes(keys), 1);
+        let mapped = cost(Strokes(keys), 1);
         let expected = Strokes(vec![
             Direction::Left,
             Direction::Forward,
@@ -516,7 +179,7 @@ mod tests {
     fn UL_should_map_to_LADLA() {
         let keys = vec![Direction::Up, Direction::Left];
 
-        let mapped = cost(&Strokes(keys), 1);
+        let mapped = cost(Strokes(keys), 1);
         let expected = Strokes(vec![
             Direction::Left,
             Direction::Forward,
@@ -531,7 +194,7 @@ mod tests {
     fn example_l1_directions() {
         let keys = map_code("<A^A>^^AvvvA");
 
-        let mapped = cost(&Strokes(keys.clone()), 1);
+        let mapped = cost(Strokes(keys.clone()), 1);
         let expected = Strokes(map_code("v<<A>>^A<A>AvA<^AA>A<vAAA>^A"));
 
         assert_eq!(mapped, expected);
@@ -541,7 +204,7 @@ mod tests {
     fn example_l2_directions() {
         let keys = map_code("v<<A>>^A<A>AvA<^AA>A<vAAA>^A");
 
-        let mapped = cost(&Strokes(keys.clone()), 1);
+        let mapped = cost(Strokes(keys.clone()), 1);
         let expected = Strokes(vec![Direction::Down, Direction::Left, Direction::Left]);
 
         println!("{}", Strokes(keys));
@@ -558,7 +221,7 @@ mod tests {
         let code = "029A";
         let keys = map_code("<A^A>^^AvvvA");
 
-        let strokes = cost(&Strokes(keys.clone()), 2);
+        let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
         assert_eq!(result, 68 * 29);
     }
@@ -568,7 +231,7 @@ mod tests {
         let code = "980A";
         let keys = map_code("^^^A<AvvvA>A");
 
-        let strokes = cost(&Strokes(keys.clone()), 2);
+        let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
 
         //v<<A>>^AAAvA^Av<A<AA>>^AvAA^<A>Av<A<A>>^AAAvA^<A>Av<A>^A<A>A
@@ -583,7 +246,7 @@ mod tests {
         let code = "179A";
         let keys = map_code("^<<A^^A>>AvvvA");
 
-        let strokes = cost(&Strokes(keys.clone()), 2);
+        let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
 
         //v<<A>>^Av<A<A>>^AvAA^<A>Av<<A>>^AAvA^Av<A>^AA<A>Av<A<A>>^AAvA^<A>A
@@ -598,7 +261,7 @@ mod tests {
         let code = "456A";
         let keys = map_code("^^<<A>A>AvvA");
 
-        let strokes = cost(&Strokes(keys.clone()), 2);
+        let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
 
         println!("{}", strokes);
@@ -610,7 +273,7 @@ mod tests {
         let code = "379A";
         let keys = map_code("^A<<^^A>>AvvvA");
 
-        let strokes = cost(&Strokes(keys.clone()), 2);
+        let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
 
         //v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A
@@ -632,7 +295,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(&Strokes(map_code(keys)), 2);
+            let strokes = cost(Strokes(map_code(keys)), 2);
             let result = score(&strokes, code);
             final_score += result;
         });
@@ -642,11 +305,6 @@ mod tests {
 
     #[test]
     fn input_part_1() {
-        // 480A
-        // 965A
-        // 140A
-        // 341A
-        // 285A
         let codes = vec![
             ("480A", "^^<<A^>AvvvA>A"),
             ("965A", "^^^AvA<Avv>A"),
@@ -657,7 +315,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(&Strokes(map_code(keys)), 2);
+            let strokes = cost(Strokes(map_code(keys)), 2);
             let result = score(&strokes, code);
             final_score += result;
         });
@@ -668,11 +326,6 @@ mod tests {
 
     #[test]
     fn test_input_depth() {
-        // 480A
-        // 965A
-        // 140A
-        // 341A
-        // 285A
         let codes = vec![
             ("480A", "^^<<A^>AvvvA>A"),
             ("965A", "^^^AvA<Avv>A"),
@@ -683,7 +336,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(&Strokes(map_code(keys)), 16);
+            let strokes = cost(Strokes(map_code(keys)), 16);
             let result = score(&strokes, code);
             final_score += result;
         });
@@ -693,11 +346,6 @@ mod tests {
 
     #[test]
     fn input_part_2() {
-        // 480A
-        // 965A
-        // 140A
-        // 341A
-        // 285A
         let codes = vec![
             ("480A", "^^<<A^>AvvvA>A"),
             ("965A", "^^^AvA<Avv>A"),
@@ -708,7 +356,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(&Strokes(map_code(keys)), 25);
+            let strokes = cost(Strokes(map_code(keys)), 25);
             let result = score(&strokes, code);
             final_score += result;
         });
