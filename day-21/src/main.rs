@@ -100,24 +100,40 @@ fn map_strokes(start: &Direction, end: &Direction) -> &'static [Direction] {
 }
 
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
-    let mut buffer = Vec::with_capacity(strokes.0.len() * 4); // Pre-allocate a reasonable capacity
+    // Pre-allocate two buffers with sufficient capacity
+    let mut buffer1 = vec![Direction::Forward; 1 * 1024 * 1024 * 1024];
+    let mut buffer2 = vec![Direction::Forward; 1 * 1024 * 1024 * 1024];
+
+    // Pointers to the active and inactive buffers
+    let mut active_buffer = &mut buffer1;
+    let mut inactive_buffer = &mut buffer2;
 
     for _ in 0..depth {
-        buffer.clear(); // Reuse the same buffer by clearing its contents
+        let mut pos = 0;
 
-        // Extend the buffer with the initial mapping
-        buffer.extend(map_strokes(&Direction::Forward, &strokes.0[0]));
+        // Map the first element with Direction::Forward
+        let initial_mapping = map_strokes(&Direction::Forward, &strokes.0[0]);
+        active_buffer[pos..pos + initial_mapping.len()].copy_from_slice(initial_mapping);
+        pos += initial_mapping.len();
 
-        // Extend the buffer for each pair in the strokes
+        // Process the pairwise mappings
         for window in strokes.0.windows(2) {
             if let [current, next] = window {
-                buffer.extend(map_strokes(current, next));
+                let mapped = map_strokes(current, next);
+                active_buffer[pos..pos + mapped.len()].copy_from_slice(mapped);
+                pos += mapped.len();
             }
         }
 
-        // Update `strokes` to reference the data in the buffer
+        // Update the inactive buffer to point to the current active buffer's content
+        inactive_buffer[..pos].copy_from_slice(&active_buffer[..pos]);
+
+        // Update strokes to point to the new buffer
         strokes.0.clear();
-        strokes.0.extend(buffer.iter());
+        strokes.0.extend_from_slice(&active_buffer[..pos]);
+
+        // Swap the active and inactive buffers
+        std::mem::swap(&mut active_buffer, &mut inactive_buffer);
     }
 
     strokes
