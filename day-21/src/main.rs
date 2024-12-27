@@ -99,6 +99,29 @@ fn map_strokes(start: &Direction, end: &Direction) -> &'static [Direction] {
     &MAP[*start][*end]
 }
 
+// the caller needs to add a forward at the beginning
+fn depth_first(strokes: Strokes, depth: usize) -> usize {
+    if depth == 0 {
+        print!("{}", Strokes(strokes.0.clone()));
+
+        return strokes.0.len();
+    }
+
+    let mut partial_score = 0;
+
+    for window in strokes.0.windows(2) {
+        if let [current, next] = window {
+            let mut mapped = map_strokes(current, next).to_vec();
+            if partial_score == 0 {
+                mapped.insert(0, Direction::Forward);
+            }
+            // println!("{}{} {}", current, next, Strokes(mapped.to_vec()));
+            partial_score += depth_first(Strokes(mapped), depth - 1);
+        }
+    }
+    return partial_score;
+}
+
 fn cost(mut strokes: Strokes, depth: usize) -> Strokes {
     let mut buffer = Vec::with_capacity(strokes.0.len() * 4); // Pre-allocate a reasonable capacity
 
@@ -134,7 +157,7 @@ fn score(strokes: &Strokes, code: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::{cost, map_code, score, Direction, Strokes};
+    use crate::{cost, depth_first, map_code, score, Direction, Strokes};
 
     #[test]
     fn uldr_should_map_to_ladrarara() {
@@ -186,6 +209,16 @@ mod tests {
     }
 
     #[test]
+    fn example_l1_depth_first() {
+        let keys = map_code("A<A^A>^^AvvvA");
+
+        let score = depth_first(Strokes(keys.clone()), 1);
+        let expected = "v<<A>>^A<A>AvA<^AA>A<vAAA>^A".len();
+
+        assert_eq!(score, expected);
+    }
+
+    #[test]
     fn example_l2_directions() {
         let keys = map_code("v<<A>>^A<A>AvA<^AA>A<vAAA>^A");
 
@@ -209,6 +242,18 @@ mod tests {
         let strokes = cost(Strokes(keys.clone()), 2);
         let result = score(&strokes, code);
         assert_eq!(result, 68 * 29);
+    }
+
+    #[test]
+    fn score_with_first_example_depth_first_68_x_29() {
+        let keys = map_code("<A^A>^^AvvvA");
+
+        let strokes = cost(Strokes(keys.clone()), 2);
+
+        let mut added_a = keys.clone();
+        added_a.insert(0, Direction::Forward);
+        let depth_score = depth_first(Strokes(added_a), 2);
+        assert_eq!(strokes.0.len(), depth_score - 1);
     }
 
     #[test]
@@ -321,7 +366,7 @@ mod tests {
 
         let mut final_score = 0;
         codes.iter().for_each(|(code, keys)| {
-            let strokes = cost(Strokes(map_code(keys)), 16);
+            let strokes = cost(Strokes(map_code(keys)), 18);
             let result = score(&strokes, code);
             final_score += result;
         });
